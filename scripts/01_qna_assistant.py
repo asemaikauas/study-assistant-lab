@@ -15,6 +15,15 @@ def get_assistant():
             return assistant
     raise ValueError("Assistant not found. Please run 00_bootstrap.py first.")
 
+def get_file_name(file_id):
+    """Get the actual filename from file ID"""
+    try:
+        file_info = client.files.retrieve(file_id)
+        return file_info.filename
+    except Exception as e:
+        print(f"Could not retrieve filename for {file_id}: {e}")
+        return f"Unknown file ({file_id})"
+
 def ask_question(assistant_id, question, file_id=None):
     """Ask a question to the assistant and get response with citations"""
     
@@ -104,15 +113,18 @@ def ask_question(assistant_id, question, file_id=None):
             for annotation in response_message.content[0].text.annotations:
                 if hasattr(annotation, 'file_citation'):
                     file_citation = annotation.file_citation
+                    file_name = get_file_name(file_citation.file_id)
                     citations.append({
                         'file_id': file_citation.file_id,
-                        'quote': getattr(file_citation, 'quote', 'No quote available')
+                        'citation': file_name
                     })
                 elif hasattr(annotation, 'file_path'):
                     # Handle file_path annotations differently
+                    file_id = getattr(annotation.file_path, 'file_id', 'Unknown')
+                    file_name = get_file_name(file_id) if file_id != 'Unknown' else 'Unknown file'
                     citations.append({
-                        'file_id': getattr(annotation.file_path, 'file_id', 'Unknown'),
-                        'quote': 'File reference found'
+                        'file_id': file_id,
+                        'citation': file_name
                     })
         
         return answer, citations
@@ -159,8 +171,8 @@ def main():
                 if citations:
                     print("\nCitations:")
                     for i, citation in enumerate(citations, 1):
-                        print(f"{i}. File ID: {citation['file_id']}")
-                        print(f"   Quote: {citation['quote'][:100]}...")
+                        print(f"{i}. Source: {citation['citation']}")
+                        print(f"   File ID: {citation['file_id']}")
                 else:
                     print("\nNo citations found - answer may be from general knowledge.")
             
@@ -183,8 +195,8 @@ def main():
                     if citations:
                         print("\nCitations:")
                         for i, citation in enumerate(citations, 1):
-                            print(f"{i}. File ID: {citation['file_id']}")
-                            print(f"   Quote: {citation['quote'][:100]}...")
+                            print(f"{i}. Source: {citation['citation']}")
+                            print(f"   File ID: {citation['file_id']}")
                     else:
                         print("\nNo citations found - answer may be from general knowledge.")
     
